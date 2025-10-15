@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen, onClose, activeContent, onNavClick, navItems, current
                 <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center space-x-4">
                         <IconLogo className="h-8 w-8 text-white" />
-                        <h1 className="text-xl font-bold">PsikologiApp</h1>
+                        <h1 className="text-xl font-bold">Welcome, {currentUser.name}</h1>
                     </div>
                     {/* Tombol close untuk mobile */}
                     <button onClick={onClose} className="text-gray-400 hover:text-white lg:hidden">
