@@ -1,41 +1,114 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
-const TestResultsPage = () => (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">All Test Results</h3>
-        <div className="flex items-center justify-between mb-4">
-            <input 
-                type="text" 
-                placeholder="Search by name or test..." 
-                className="w-full md:w-1/3 px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                        <th scope="col" className="px-6 py-3">Participant</th>
-                        <th scope="col" className="px-6 py-3">Test</th>
-                        <th scope="col" className="px-6 py-3">Score</th>
-                        <th scope="col" className="px-6 py-3">Date</th>
-                        <th scope="col" className="px-6 py-3">Details</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">John Doe</td>
-                        <td className="px-6 py-4">Psychology 101</td>
-                        <td className="px-6 py-4 font-semibold text-green-600 dark:text-green-400">95%</td>
-                        <td className="px-6 py-4">2023-10-26</td>
-                        <td className="px-6 py-4">
-                            <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">View</a>
-                        </td>
-                    </tr>
-                    {/* Tambahkan baris data lain di sini */}
-                </tbody>
-            </table>
-        </div>
-    </div>
+// Komponen untuk baris tabel
+const ResultRow = ({ result, isAdmin }) => (
+    <tr className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+        {isAdmin && (
+            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                {result.user_name}
+            </td>
+        )}
+        <td className="px-6 py-4">
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                result.score >= 80 ? 'bg-green-100 text-green-800' :
+                result.score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+            }`}>
+                {result.score}
+            </span>
+        </td>
+        <td className="px-6 py-4">
+            {new Date(result.created_at).toLocaleString('id-ID', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })}
+        </td>
+    </tr>
 );
+
+// Komponen utama halaman
+const TestResultsPage = () => {
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Ambil role user dari localStorage
+    const userRole = useMemo(() => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            return user ? user.role : 'user';
+        } catch (e) {
+            return 'user';
+        }
+    }, []);
+
+    const isAdmin = userRole === 'admin';
+
+    useEffect(() => {
+        const fetchResults = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://localhost:3001/api/test-results', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal memuat hasil tes.');
+                }
+                setResults(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchResults();
+    }, []);
+
+    if (loading) return <p className="text-center dark:text-white">Memuat hasil tes...</p>;
+    if (error) return <p className="text-center text-red-500">{error}</p>;
+
+    return (
+        <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                {isAdmin ? 'Semua Hasil Tes' : 'Hasil Tes Anda'}
+            </h2>
+
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                {isAdmin && <th scope="col" className="px-6 py-3">Pengguna</th>}
+                                <th scope="col" className="px-6 py-3">Skor</th>
+                                <th scope="col" className="px-6 py-3">Tanggal Tes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {results.length > 0 ? (
+                                results.map(result => (
+                                    <ResultRow key={result.id} result={result} isAdmin={isAdmin} />
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={isAdmin ? 3 : 2} className="px-6 py-4 text-center">
+                                        Belum ada data hasil tes.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default TestResultsPage;

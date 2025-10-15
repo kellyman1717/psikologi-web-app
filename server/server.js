@@ -49,6 +49,13 @@ const isAdmin = (req, res, next) => {
     next();
 };
 
+// --- ROUTE IMPORTS ---
+const usersRoutes = require('./routes/users')(db, bcrypt);
+const questionsRoutes = require('./routes/questions')(db);
+const testResultsRoutes = require('./routes/testResults')(db);
+const testRoutes = require('./routes/test')(db);
+const profileRoutes = require('./routes/profile')(db);
+
 // --- ENDPOINT OTENTIKASI ---
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
@@ -67,52 +74,17 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// --- ENDPOINT MANAJEMEN PENGGUNA ---
-app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
-    const query = "SELECT id, name, email, role, created_at FROM users";
-    db.query(query, (err, results) => {
-        if (err) return res.status(500).json({ message: "Server error saat mengambil pengguna." });
-        res.json(results);
-    });
-});
+// --- GUNAKAN ROUTER UNTUK MANAJEMEN PENGGUNA ---
+app.use('/api/users', authenticateToken, isAdmin, usersRoutes);
 
-app.post('/api/users', authenticateToken, isAdmin, async (req, res) => {
-    const { name, email, password, role } = req.body;
-    if (!name || !email || !password || !role) return res.status(400).json({ message: "Semua field harus diisi." });
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const query = "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)";
-        db.query(query, [name, email, hashedPassword, role], (err, result) => {
-            if (err) return res.status(500).json({ message: "Gagal membuat pengguna." });
-            res.status(201).json({ message: "Pengguna berhasil dibuat." });
-        });
-    } catch (error) {
-        res.status(500).json({ message: "Server error." });
-    }
-});
+// --- GUNAKAN ROUTER UNTUK PERTANYAAN ---
+app.use('/api/questions', authenticateToken, questionsRoutes);
 
-app.put('/api/users/:id', authenticateToken, isAdmin, async (req, res) => {
-    // ... (kode untuk edit pengguna)
-});
+app.use('/api/test', authenticateToken, testRoutes);
 
-app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
-    // ... (kode untuk hapus pengguna)
-});
+app.use('/api/test-results', authenticateToken, testResultsRoutes);
 
-// --- ENDPOINT PERTANYAAN ---
-app.get('/api/questions', authenticateToken, (req, res) => {
-    // ... (kode untuk mengambil pertanyaan)
-});
-
-// --- ENDPOINT PENUGASAN ---
-app.get('/api/users/:userId/assignments', authenticateToken, isAdmin, (req, res) => {
-    // ... (kode untuk mengambil assignment)
-});
-
-app.post('/api/users/:userId/assignments', authenticateToken, isAdmin, (req, res) => {
-    // ... (kode untuk menyimpan assignment)
-});
-
+app.use('/api/profile', authenticateToken, profileRoutes);
 
 // Jalankan Server
 app.listen(PORT, () => {

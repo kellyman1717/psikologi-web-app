@@ -1,81 +1,231 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
-// --- Komponen Card Kategori yang Bisa Dibuka-Tutup ---
-const CategoryCard = ({ category, questions }) => {
-    const [isOpen, setIsOpen] = useState(false);
+// ===================================================================================
+// 1. TAMPILAN UNTUK ADMIN
+// ===================================================================================
+const AdminQuestionView = ({ showToast }) => {
+    const [questions, setQuestions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [expandedCategory, setExpandedCategory] = useState(null);
+
+    useEffect(() => {
+        fetchQuestions();
+    }, []);
+
+    const fetchQuestions = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:3001/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal memuat pertanyaan.');
+            setQuestions(data);
+        } catch (err) {
+            setError(err.message);
+            showToast(err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const groupedQuestions = useMemo(() => {
+        return questions.reduce((acc, q) => {
+            const category = q.category || 'Uncategorized';
+            if (!acc[category]) acc[category] = [];
+            acc[category].push(q);
+            return acc;
+        }, {});
+    }, [questions]);
+
+    const handleToggleCategory = (category) => {
+        setExpandedCategory(prev => (prev === category ? null : category));
+    };
+
+    if (loading) return <p className="text-center dark:text-white">Memuat daftar pertanyaan...</p>;
+    if (error) return <p className="text-center text-red-500">{error}</p>;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden mb-4">
-            <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between items-center p-4 text-left"
-            >
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">{category}</h3>
-                <svg className={`w-6 h-6 transform transition-transform dark:text-gray-400 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            {isOpen && (
-                <div className="p-4 border-t dark:border-gray-700">
-                    <ul className="space-y-2">
-                        {questions.map(q => (
-                            <li key={q.id} className="text-gray-600 dark:text-gray-400">{q.question_text}</li>
-                        ))}
-                    </ul>
+        <div>
+            <div className="flex justify-between items-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Manajemen Pertanyaan</h2>
+                <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105">
+                    Tambah Pertanyaan
+                </button>
+            </div>
+            
+            {Object.keys(groupedQuestions).length > 0 ? (
+                <div className="grid grid-cols-1 gap-6">
+                    {Object.entries(groupedQuestions).map(([category, qs]) => (
+                        <CategoryCard 
+                            key={category} 
+                            category={category} 
+                            questions={qs}
+                            isExpanded={expandedCategory === category}
+                            onToggle={() => handleToggleCategory(category)}
+                        />
+                    ))}
                 </div>
+            ) : (
+                <p className="text-center text-gray-500 dark:text-gray-400 mt-10">Belum ada pertanyaan di database.</p>
             )}
         </div>
     );
 };
 
-// --- Komponen Utama Halaman ---
-const QuestionManagementPage = () => {
-    const [groupedQuestions, setGroupedQuestions] = useState({});
+const CategoryCard = ({ category, questions, isExpanded, onToggle }) => (
+    <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-500 ease-in-out ${isExpanded ? 'scale-[1.02]' : 'hover:shadow-xl'}`}>
+        <button onClick={onToggle} className="w-full flex justify-between items-center p-5 text-left">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{category}</h3>
+            <svg className={`w-6 h-6 transform transition-transform duration-500 text-gray-500 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+        <div className={`transition-all duration-700 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[2000px]' : 'max-h-0'}`}>
+            <div className="px-5 pb-5 divide-y dark:divide-gray-700">
+                {questions.map((q, index) => (
+                    <div key={q.id} className={`transition-opacity duration-500 ease-out ${isExpanded ? 'opacity-100 delay-300' : 'opacity-0'}`}>
+                        <div className="py-4">
+                            <p className="font-semibold text-gray-800 dark:text-gray-300 mb-3">{index + 1}. {q.question_text}</p>
+                            <div className="space-y-2 pl-4">
+                                {q.options && typeof q.options === 'string' && Object.entries(JSON.parse(q.options)).map(([key, value]) => (
+                                    <p key={key} className={`text-sm ${q.correct_answer === key ? 'text-green-500 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>{key}. {value} {q.correct_answer === key && '✓'}</p>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
+// ===================================================================================
+// 2. TAMPILAN UNTUK USER
+// ===================================================================================
+const UserTestView = ({ showToast, onNavClick }) => {
+    const [questions, setQuestions] = useState([]);
+    const [answers, setAnswers] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const fetchAssignedQuestions = async () => {
             setLoading(true);
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:3001/api/questions', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Failed to fetch questions.');
-                
+                const response = await fetch('http://localhost:3001/api/questions', { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await response.json();
-                const grouped = data.reduce((acc, q) => {
-                    acc[q.category] = acc[q.category] || [];
-                    acc[q.category].push(q);
-                    return acc;
-                }, {});
-                setGroupedQuestions(grouped);
+                if (!response.ok) throw new Error(data.message || 'Gagal memuat soal.');
+                setQuestions(data);
             } catch (err) {
                 setError(err.message);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchAssignedQuestions();
     }, []);
+
+    const handleAnswerChange = (questionId, answerKey) => {
+        setAnswers(prev => ({ ...prev, [questionId]: answerKey }));
+    };
+
+    const handleSubmit = async () => {
+        if (Object.keys(answers).length < questions.length) {
+            return showToast('Harap jawab semua pertanyaan.', 'warning');
+        }
+        if (!window.confirm('Apakah Anda yakin ingin mengirim jawaban?')) return;
+
+        setIsSubmitting(true);
+        const formattedAnswers = Object.entries(answers).map(([qid, answer]) => ({
+            question_id: parseInt(qid, 10),
+            answer,
+        }));
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:3001/api/test/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ answers: formattedAnswers })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message);
+            
+            showToast(`Tes Selesai! Skor Anda: ${result.score}`, 'success');
+            onNavClick('test-results'); // Gunakan onNavClick untuk pindah halaman
+        } catch (err) {
+            showToast(`Error: ${err.message}`, 'error');
+            setIsSubmitting(false);
+        }
+    };
     
-    if (loading) return <p className="text-center dark:text-white">Loading your questions...</p>;
+    const renderOptions = (question) => {
+        if (!question.options || typeof question.options !== 'string') return null;
+        try {
+            const parsedOptions = JSON.parse(question.options);
+            return Object.entries(parsedOptions).map(([key, value]) => (
+                <label key={key} className="flex items-center space-x-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <input type="radio" name={`question-${question.id}`} value={key}
+                        checked={answers[question.id] === key}
+                        onChange={() => handleAnswerChange(question.id, key)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-gray-600 dark:text-gray-400">{value}</span>
+                </label>
+            ));
+        } catch { return null; }
+    };
+
+    if (loading) return <p className="text-center dark:text-white">Memuat pertanyaan Anda...</p>;
     if (error) return <p className="text-center text-red-500">{error}</p>;
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">My Assigned Questions</h2>
-            {Object.keys(groupedQuestions).length > 0 ? (
-                Object.entries(groupedQuestions).map(([category, questions]) => (
-                    <CategoryCard key={category} category={category} questions={questions} />
-                ))
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Kerjakan Soal Tes</h2>
+            {questions.length > 0 ? (
+                <div className="space-y-8">
+                    {questions.map((q, index) => (
+                        <div key={q.id} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                            <p className="font-semibold text-gray-700 dark:text-gray-300 mb-4">{index + 1}. {q.question_text}</p>
+                            <div className="space-y-3 pl-2">{renderOptions(q)}</div>
+                        </div>
+                    ))}
+                    <div className="flex justify-end pt-4">
+                        <button onClick={handleSubmit} disabled={isSubmitting}
+                            className="bg-blue-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                            {isSubmitting ? 'Mengirim...' : 'Selesai & Kirim'}
+                        </button>
+                    </div>
+                </div>
             ) : (
-                <p className="text-center text-gray-500 dark:text-gray-400">No questions have been assigned to you yet.</p>
+                <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                    <p className="text-gray-500 dark:text-gray-400">Tidak ada soal yang ditugaskan untuk Anda saat ini.</p>
+                </div>
             )}
         </div>
     );
+};
+
+// ===================================================================================
+// 3. KOMPONEN UTAMA (ROUTER BERDASARKAN ROLE)
+// ===================================================================================
+const QuestionManagementPage = ({ showToast, currentUser, onNavClick }) => {
+    const userRole = currentUser?.role;
+
+    if (userRole === 'admin') {
+        return <AdminQuestionView showToast={showToast} />;
+    }
+    
+    if (userRole === 'user') {
+        return <UserTestView showToast={showToast} onNavClick={onNavClick} />;
+    }
+
+    // Tampilan default jika role belum terdeteksi
+    return <p className="text-center dark:text-white">Memuat...</p>;
 };
 
 export default QuestionManagementPage;
