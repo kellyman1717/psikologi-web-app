@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import Sidebar from './components/layout/Sidebar';
-import Header from './components/layout/Header';
-import DashboardPage from './pages/DashboardPage';
-import QuestionManagementPage from './pages/QuestionManagementPage';
-import TestResultsPage from './pages/TestResultsPage';
-import UserManagementPage from './pages/UserManagementPage';
-import ReportsPage from './pages/ReportsPage';
-import SettingsPage from './pages/SettingsPage';
-import LoginPage from './pages/LoginPage';
-import Toast from './components/Toast';
-import AssignQuestionsModal from './components/AssignQuestionsModal'; // Import AssignQuestionsModal
+import Sidebar from './components/layout/sidebarMenu';
+import Header from './components/layout/header';
+import DashboardPage from './pages/Dashboard';
+import QuestionManagementPage from './pages/pertanyaan';
+import TestResultsPage from './pages/hasiltes';
+import UserManagementPage from './pages/admindanuser';
+import ReportsPage from './pages/Report';
+import SettingsPage from './pages/setting';
+import LoginPage from './pages/login';
+import Toast from './components/popup';
+import AssignQuestionsModal from './components/aturPertanyaan'; // Import AssignQuestionsModal
 
 // Komponen UserModal sekarang didefinisikan di sini untuk memastikan ia selalu di atas
 const UserModal = ({ isOpen, onClose, onSubmit, userToEdit }) => {

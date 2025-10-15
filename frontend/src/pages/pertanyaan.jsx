@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import AddQuestionModal from '../components/tambahPertanyaan';
+import EditQuestionModal from '../components/editpertanyaan';
+// AddCategoryModal tidak perlu diimpor di sini lagi
 
 // ===================================================================================
 // 1. TAMPILAN UNTUK ADMIN
@@ -8,12 +11,19 @@ const AdminQuestionView = ({ showToast }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [expandedCategory, setExpandedCategory] = useState(null);
+    
+    // States for modals
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingQuestion, setEditingQuestion] = useState(null);
+    // State dan handler untuk modal kategori dihapus dari sini
 
     useEffect(() => {
         fetchQuestions();
     }, []);
 
     const fetchQuestions = async () => {
+        // ... (logika fetchQuestions tetap sama)
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -30,8 +40,25 @@ const AdminQuestionView = ({ showToast }) => {
             setLoading(false);
         }
     };
+    
+    const handleQuestionAdded = () => {
+        setIsAddModalOpen(false);
+        fetchQuestions();
+    };
+
+    const handleQuestionUpdated = () => {
+        setIsEditModalOpen(false);
+        setEditingQuestion(null);
+        fetchQuestions();
+    };
+
+    const handleOpenEditModal = (question) => {
+        setEditingQuestion(question);
+        setIsEditModalOpen(true);
+    };
 
     const groupedQuestions = useMemo(() => {
+        // ... (logika grouping tetap sama)
         return questions.reduce((acc, q) => {
             const category = q.category || 'Uncategorized';
             if (!acc[category]) acc[category] = [];
@@ -51,7 +78,11 @@ const AdminQuestionView = ({ showToast }) => {
         <div>
             <div className="flex justify-between items-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Manajemen Pertanyaan</h2>
-                <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105">
+                {/* Tombol Tambah Kategori dihapus dari sini */}
+                <button 
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105"
+                >
                     Tambah Pertanyaan
                 </button>
             </div>
@@ -65,17 +96,36 @@ const AdminQuestionView = ({ showToast }) => {
                             questions={qs}
                             isExpanded={expandedCategory === category}
                             onToggle={() => handleToggleCategory(category)}
+                            onEditClick={handleOpenEditModal}
                         />
                     ))}
                 </div>
             ) : (
                 <p className="text-center text-gray-500 dark:text-gray-400 mt-10">Belum ada pertanyaan di database.</p>
             )}
+
+            <AddQuestionModal 
+                isOpen={isAddModalOpen} 
+                onClose={() => setIsAddModalOpen(false)} 
+                showToast={showToast}
+                onQuestionAdded={handleQuestionAdded}
+            />
+
+            <EditQuestionModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                showToast={showToast}
+                onQuestionUpdated={handleQuestionUpdated}
+                question={editingQuestion}
+            />
+            
+            {/* Instance AddCategoryModal dihapus dari sini */}
         </div>
     );
 };
 
-const CategoryCard = ({ category, questions, isExpanded, onToggle }) => (
+// ... (CategoryCard, UserTestView, dan komponen utama tetap sama)
+const CategoryCard = ({ category, questions, isExpanded, onToggle, onEditClick }) => (
     <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-500 ease-in-out ${isExpanded ? 'scale-[1.02]' : 'hover:shadow-xl'}`}>
         <button onClick={onToggle} className="w-full flex justify-between items-center p-5 text-left">
             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{category}</h3>
@@ -83,16 +133,27 @@ const CategoryCard = ({ category, questions, isExpanded, onToggle }) => (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
         </button>
-        <div className={`transition-all duration-700 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[2000px]' : 'max-h-0'}`}>
+        <div className={`transition-all duration-700 ease-in-out ${isExpanded ? 'max-h-[40rem] overflow-y-auto' : 'max-h-0 overflow-hidden'}`}>
             <div className="px-5 pb-5 divide-y dark:divide-gray-700">
                 {questions.map((q, index) => (
                     <div key={q.id} className={`transition-opacity duration-500 ease-out ${isExpanded ? 'opacity-100 delay-300' : 'opacity-0'}`}>
                         <div className="py-4">
-                            <p className="font-semibold text-gray-800 dark:text-gray-300 mb-3">{index + 1}. {q.question_text}</p>
+                            <div className="flex justify-between items-start">
+                                <p className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex-1">{index + 1}. {q.question_text}</p>
+                                <button onClick={() => onEditClick(q)} className="text-sm text-blue-500 hover:text-blue-700 ml-4 px-3 py-1 rounded-md bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600">
+                                    Edit
+                                </button>
+                            </div>
                             <div className="space-y-2 pl-4">
-                                {q.options && typeof q.options === 'string' && Object.entries(JSON.parse(q.options)).map(([key, value]) => (
-                                    <p key={key} className={`text-sm ${q.correct_answer === key ? 'text-green-500 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>{key}. {value} {q.correct_answer === key && '✓'}</p>
-                                ))}
+                                {q.options && typeof q.options === 'string' && JSON.parse(q.options).map((value, idx) => {
+                                    const optionLetter = String.fromCharCode(65 + idx);
+                                    const isCorrect = q.correct_answer === optionLetter;
+                                    return (
+                                        <p key={idx} className={`text-sm ${isCorrect ? 'text-green-500 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>
+                                            {optionLetter}. {value} {isCorrect && '✓'}
+                                        </p>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -101,6 +162,7 @@ const CategoryCard = ({ category, questions, isExpanded, onToggle }) => (
         </div>
     </div>
 );
+
 
 // ===================================================================================
 // 2. TAMPILAN UNTUK USER

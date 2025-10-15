@@ -80,18 +80,18 @@ const UserManagementPage = ({ showToast, onOpenUserModal, onOpenAssignModal, for
     
     return (
         <div className="space-y-6">
+            <div className="flex justify-end">
+                <button onClick={() => onOpenUserModal()} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-transform transform hover:scale-105">Tambah User</button>
+            </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Pengguna Admin</h3>
-                    <button onClick={() => onOpenUserModal()} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                        Tambah Pengguna
-                    </button>
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Admin</h3>
                 </div>
                 <UserTable users={adminUsers} onEdit={onOpenUserModal} onDelete={handleDeleteUser} onAssign={onOpenAssignModal} />
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Pengguna Penjawab</h3>
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Penjawab</h3>
                 </div>
                 <UserTable users={regularUsers} onEdit={onOpenUserModal} onDelete={handleDeleteUser} onAssign={onOpenAssignModal} />
             </div>

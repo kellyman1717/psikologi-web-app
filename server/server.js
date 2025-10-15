@@ -55,6 +55,7 @@ const questionsRoutes = require('./routes/questions')(db);
 const testResultsRoutes = require('./routes/testResults')(db);
 const testRoutes = require('./routes/test')(db);
 const profileRoutes = require('./routes/profile')(db);
+const categoryRoutes = require('./routes/categories')(db);
 
 // --- ENDPOINT OTENTIKASI ---
 app.post('/api/login', (req, res) => {
@@ -85,7 +86,7 @@ app.use('/api/test', authenticateToken, testRoutes);
 app.use('/api/test-results', authenticateToken, testResultsRoutes);
 
 app.use('/api/profile', authenticateToken, profileRoutes);
-
+app.use('/api/categories', authenticateToken, categoryRoutes);
 // Jalankan Server
 app.listen(PORT, () => {
     console.log(`Server utama berjalan di http://localhost:${PORT}`);
