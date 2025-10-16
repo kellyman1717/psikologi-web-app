@@ -1,26 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 // --- Komponen Checkbox Kategori ---
-const CategoryCheckbox = ({ category, questions, assignedIds, onToggle }) => (
-    <div className="mb-4">
-        <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">{category}</h4>
-        <ul className="space-y-2">
-            {questions.map(q => (
-                <li key={q.id}>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={assignedIds.has(q.id)}
-                            onChange={() => onToggle(q.id)}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-gray-600 dark:text-gray-400">{q.question_text}</span>
-                    </label>
-                </li>
-            ))}
-        </ul>
-    </div>
-);
+const CategoryCheckbox = ({ category, questions, assignedIds, onToggle, onCategoryToggle }) => {
+    const allQuestionsInCategorySelected = questions.every(q => assignedIds.has(q.id));
+
+    const handleCategoryClick = () => {
+        const questionIdsInCategory = questions.map(q => q.id);
+        onCategoryToggle(questionIdsInCategory, !allQuestionsInCategorySelected);
+    };
+
+    return (
+        <div className="mb-4">
+            <div className="flex items-center mb-2 cursor-pointer" onClick={handleCategoryClick}>
+                <input
+                    type="checkbox"
+                    checked={allQuestionsInCategorySelected}
+                    onChange={() => {}} // onChange dikosongkan karena sudah dihandle oleh div
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300 ml-3">{category}</h4>
+            </div>
+            <ul className="space-y-2 pl-7">
+                {questions.map(q => (
+                    <li key={q.id}>
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={assignedIds.has(q.id)}
+                                onChange={() => onToggle(q.id)}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-600 dark:text-gray-400">{q.question_text}</span>
+                        </label>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
 
 // --- Komponen Utama Modal ---
 const AssignQuestionsModal = ({ isOpen, onClose, user, showToast }) => {
@@ -32,28 +50,23 @@ const AssignQuestionsModal = ({ isOpen, onClose, user, showToast }) => {
 
     const fetchData = useCallback(async () => {
         if (!isOpen || !user) return;
-
         setLoading(true);
         setError('');
         try {
             const token = localStorage.getItem('token');
             const headers = { 'Authorization': `Bearer ${token}` };
-
-            // 1. Ambil SEMUA pertanyaan yang ada
-            const questionsResponse = await fetch('http://localhost:3001/api/questions', { headers });
-            const questionsData = await questionsResponse.json();
-            if (!questionsResponse.ok) {
-                throw new Error(questionsData.message || 'Gagal memuat daftar pertanyaan.');
-            }
-
-            // 2. Ambil pertanyaan yang SUDAH ditugaskan ke user ini
-            const assignmentsResponse = await fetch(`http://localhost:3001/api/users/${user.id}/assignments`, { headers });
-            const assignmentsData = await assignmentsResponse.json();
-            if (!assignmentsResponse.ok) {
-                throw new Error(assignmentsData.message || 'Gagal memuat penugasan user.');
-            }
             
-            // Proses dan atur state
+            const [questionsResponse, assignmentsResponse] = await Promise.all([
+                fetch('http://localhost:3001/api/questions', { headers }),
+                fetch(`http://localhost:3001/api/users/${user.id}/assignments`, { headers })
+            ]);
+
+            if (!questionsResponse.ok) throw new Error('Gagal memuat daftar pertanyaan.');
+            if (!assignmentsResponse.ok) throw new Error('Gagal memuat penugasan user.');
+
+            const questionsData = await questionsResponse.json();
+            const assignmentsData = await assignmentsResponse.json();
+            
             const assignedIds = new Set(assignmentsData.map(a => a.question_id));
             setAssignedQuestionIds(assignedIds);
 
@@ -83,6 +96,18 @@ const AssignQuestionsModal = ({ isOpen, onClose, user, showToast }) => {
                 newIds.delete(questionId);
             } else {
                 newIds.add(questionId);
+            }
+            return newIds;
+        });
+    };
+    
+    const handleCategoryToggle = (questionIds, shouldAssign) => {
+        setAssignedQuestionIds(prevIds => {
+            const newIds = new Set(prevIds);
+            if (shouldAssign) {
+                questionIds.forEach(id => newIds.add(id));
+            } else {
+                questionIds.forEach(id => newIds.delete(id));
             }
             return newIds;
         });
@@ -136,6 +161,7 @@ const AssignQuestionsModal = ({ isOpen, onClose, user, showToast }) => {
                                 questions={questions}
                                 assignedIds={assignedQuestionIds}
                                 onToggle={handleToggleQuestion}
+                                onCategoryToggle={handleCategoryToggle}
                             />
                         ))
                     ) : (
