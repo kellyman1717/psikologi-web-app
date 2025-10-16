@@ -10,7 +10,9 @@ import ReportsPage from './pages/Report';
 import SettingsPage from './pages/setting';
 import LoginPage from './pages/login';
 import Toast from './components/popup';
-import AssignQuestionsModal from './components/aturPertanyaan'; // Import AssignQuestionsModal
+import AssignQuestionsModal from './components/aturPertanyaan';
+// --- Impor halaman edit yang baru ---
+import EditTestResultPage from './pages/editHasilTes';
 
 // Komponen UserModal sekarang didefinisikan di sini untuk memastikan ia selalu di atas
 const UserModal = ({ isOpen, onClose, onSubmit, userToEdit }) => {
@@ -63,12 +65,15 @@ function App() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [webTitle, setWebTitle] = useState('Psikologi App');
 
-  // --- State untuk semua modal sekarang ada di sini ---
+  // --- State untuk semua modal ---
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [userToAssign, setUserToAssign] = useState(null);
-  const [forceUpdate, setForceUpdate] = useState(0); // State untuk trigger re-fetch
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  // --- State baru untuk menangani halaman edit ---
+  const [editingTestResultId, setEditingTestResultId] = useState(null);
 
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); localStorage.setItem('theme', theme); }, [theme]);
   useEffect(() => { const savedTitle = localStorage.getItem('webTitle'); if (savedTitle) { setWebTitle(savedTitle); document.title = savedTitle; } else { document.title = webTitle; } }, [webTitle]);
@@ -86,8 +91,13 @@ function App() {
   const handleCloseUserModal = () => { setUserToEdit(null); setIsUserModalOpen(false); };
   const handleOpenAssignModal = (user) => { setUserToAssign(user); setIsAssignModalOpen(true); };
   const handleCloseAssignModal = () => { setUserToAssign(null); setIsAssignModalOpen(false); };
+  
+  // --- Fungsi baru untuk navigasi ke halaman edit ---
+  const handleEditTestResult = (id) => setEditingTestResultId(id);
+  const handleFinishEditingTestResult = () => setEditingTestResultId(null);
 
-  // --- Logika submit form sekarang ada di sini ---
+
+  // --- Logika submit form ---
   const handleUserFormSubmit = async (formData) => {
     const url = userToEdit ? `http://localhost:3001/api/users/${userToEdit.id}` : 'http://localhost:3001/api/users';
     const method = userToEdit ? 'PUT' : 'POST';
@@ -98,19 +108,27 @@ function App() {
         if (!response.ok) throw new Error(data.message || 'Request gagal.');
         showToast(userToEdit ? 'Pengguna berhasil diperbarui!' : 'Pengguna berhasil ditambahkan!');
         handleCloseUserModal();
-        setForceUpdate(val => val + 1); // Trigger re-fetch di UserManagementPage
+        setForceUpdate(val => val + 1);
     } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
     }
   };
 
   const renderContent = () => {
+    // --- Prioritaskan render halaman edit jika ID-nya ada ---
+    if (editingTestResultId) {
+        return <EditTestResultPage 
+            id={editingTestResultId}
+            onFinishEditing={handleFinishEditingTestResult}
+            showToast={showToast}
+        />;
+    }
+
     if (!currentUser) return null;
     const props = { 
         showToast, 
         currentUser, 
         onNavClick: handleNavClick,
-        // Kirim fungsi untuk membuka modal
         onOpenUserModal: handleOpenUserModal,
         onOpenAssignModal: handleOpenAssignModal,
         forceUpdate
@@ -118,7 +136,8 @@ function App() {
     switch (activeContent) {
       case 'dashboard': return <DashboardPage />;
       case 'question-management': return <QuestionManagementPage {...props} />;
-      case 'test-results': return <TestResultsPage {...props} />;
+      // --- Kirim fungsi 'handleEditTestResult' sebagai prop ---
+      case 'test-results': return <TestResultsPage {...props} onEditTestResult={handleEditTestResult} />;
       case 'user-management': return currentUser.role === 'admin' ? <UserManagementPage {...props} /> : null;
       case 'reports': return currentUser.role === 'admin' ? <ReportsPage /> : null;
       case 'settings': return <SettingsPage {...props} webTitle={webTitle} onTitleChange={handleTitleChange} />;
@@ -139,7 +158,7 @@ function App() {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} activeContent={activeContent} onNavClick={handleNavClick} navItems={navItems} currentUser={currentUser} />
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-        <Header onMenuClick={() => setSidebarOpen(!isSidebarOpen)} title={activeTitle} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} theme={theme} onLogout={handleLogout} onEditProfile={handleEditProfile} currentUser={currentUser} />
+        <Header onMenuClick={() => setSidebarOpen(!isSidebarOpen)} title={editingTestResultId ? 'Edit Hasil Tes' : activeTitle} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} theme={theme} onLogout={handleLogout} onEditProfile={handleEditProfile} currentUser={currentUser} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
           {renderContent()}
         </main>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AddQuestionModal from '../components/tambahPertanyaan';
-import EditQuestionModal from '../components/editpertanyaan';
+import EditQuestionModal from '../components/editPertanyaan';
 // AddCategoryModal tidak perlu diimpor di sini lagi
 
 // ===================================================================================
