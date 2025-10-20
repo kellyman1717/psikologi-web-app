@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import Sidebar from './components/layout/sidebarMenu';
-import Header from './components/layout/header';
+import Header from './components/layout/Header';
 import DashboardPage from './pages/Dashboard';
 import QuestionManagementPage from './pages/pertanyaan';
 import TestResultsPage from './pages/hasiltes';
