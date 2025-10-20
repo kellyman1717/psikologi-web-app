@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AddQuestionModal from '../components/tambahPertanyaan';
-import EditQuestionModal from '../components/editPertanyaan';
+import EditQuestionModal from '../components/editpertanyaan';
 // AddCategoryModal tidak perlu diimpor di sini lagi
 
 // ===================================================================================
@@ -173,12 +173,39 @@ const UserTestView = ({ showToast, onNavClick }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasCompleted, setHasCompleted] = useState(false);
+    const [canStart, setCanStart] = useState(false);
+    const [latestResult, setLatestResult] = useState(null);
 
     useEffect(() => {
-        const fetchAssignedQuestions = async () => {
+        const bootstrap = async () => {
             setLoading(true);
             try {
+                const started = localStorage.getItem('test_started') === 'true';
+                setCanStart(started);
+
+                // Cek apakah user sudah pernah mengerjakan tes
                 const token = localStorage.getItem('token');
+                const resResults = await fetch('http://localhost:3001/api/test-results', { headers: { 'Authorization': `Bearer ${token}` } });
+                const results = await resResults.json();
+                if (!resResults.ok) throw new Error(results.message || 'Gagal memuat status tes.');
+                const sorted = Array.isArray(results) ? results.slice().sort((a,b) => new Date(b.created_at) - new Date(a.created_at)) : [];
+                const already = sorted.length > 0;
+                setHasCompleted(already);
+                setLatestResult(sorted[0] || null);
+
+                if (already) {
+                    setQuestions([]);
+                    return; // langsung selesai, jangan ambil pertanyaan
+                }
+
+                if (!started) {
+                    // Belum menekan tombol dari Dashboard; jangan tampilkan pertanyaan
+                    setQuestions([]);
+                    return;
+                }
+
+                // Ambil pertanyaan hanya jika boleh mulai dan belum pernah mengerjakan
                 const response = await fetch('http://localhost:3001/api/questions', { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.message || 'Gagal memuat soal.');
@@ -189,7 +216,7 @@ const UserTestView = ({ showToast, onNavClick }) => {
                 setLoading(false);
             }
         };
-        fetchAssignedQuestions();
+        bootstrap();
     }, []);
 
     const handleAnswerChange = (questionId, answerKey) => {
@@ -219,6 +246,8 @@ const UserTestView = ({ showToast, onNavClick }) => {
             if (!response.ok) throw new Error(result.message);
             
             showToast(`Tes Selesai! Skor Anda: ${result.score}`, 'success');
+            // Hapus flag mulai dan arahkan ke hasil
+            localStorage.removeItem('test_started');
             onNavClick('test-results'); // Gunakan onNavClick untuk pindah halaman
         } catch (err) {
             showToast(`Error: ${err.message}`, 'error');
@@ -248,7 +277,20 @@ const UserTestView = ({ showToast, onNavClick }) => {
     return (
         <div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Kerjakan Soal Tes</h2>
-            {questions.length > 0 ? (
+            {hasCompleted ? (
+                <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                    <p className="text-gray-600 dark:text-gray-300 mb-2">Anda sudah menyelesaikan tes. Pertanyaan tidak ditampilkan.</p>
+                    {latestResult && (
+                        <p className="text-gray-500 dark:text-gray-400">
+                            Skor terakhir: <span className="font-semibold">{latestResult.score}</span> · {new Date(latestResult.created_at).toLocaleString('id-ID')}
+                        </p>
+                    )}
+                </div>
+            ) : !canStart ? (
+                <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                    <p className="text-gray-600 dark:text-gray-300">Silakan tekan tombol "Mulai Tes Sekarang" di Dashboard untuk memulai.</p>
+                </div>
+            ) : questions.length > 0 ? (
                 <div className="space-y-8">
                     {questions.map((q, index) => (
                         <div key={q.id} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">

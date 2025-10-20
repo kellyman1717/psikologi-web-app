@@ -56,6 +56,8 @@ const testResultsRoutes = require('./routes/testResults')(db);
 const testRoutes = require('./routes/test')(db);
 const profileRoutes = require('./routes/profile')(db);
 const categoryRoutes = require('./routes/categories')(db);
+const reportsRoutes = require('./routes/reports')(db);
+const activityRoutes = require('./routes/activity')(db);
 
 // --- ENDPOINT OTENTIKASI ---
 app.post('/api/login', (req, res) => {
@@ -70,7 +72,24 @@ app.post('/api/login', (req, res) => {
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) return res.status(401).json({ message: 'Username atau password salah' });
 
+        // Generate JWT token
         const token = jwt.sign({ id: user.id, name: user.name, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+
+        // Log login activity
+        const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '')
+            .toString()
+            .split(',')[0]
+            .trim() || null;
+
+        const ua = req.headers['user-agent'] || null;
+
+        db.query(
+            'INSERT INTO login_activity (user_id, ip_address, user_agent) VALUES (?, ?, ?)',
+            [user.id, ip, ua],
+            () => {}
+        );
+
+
         res.json({ token, user: { name: user.name, role: user.role } });
     });
 });
@@ -87,6 +106,9 @@ app.use('/api/test-results', authenticateToken, testResultsRoutes);
 
 app.use('/api/profile', authenticateToken, profileRoutes);
 app.use('/api/categories', authenticateToken, categoryRoutes);
+app.use('/api/reports', authenticateToken, isAdmin, reportsRoutes);
+app.use('/api/activity', authenticateToken, isAdmin, activityRoutes);
+
 // Jalankan Server
 app.listen(PORT, () => {
     console.log(`Server utama berjalan di http://localhost:${PORT}`);

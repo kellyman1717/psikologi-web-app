@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import Sidebar from './components/layout/sidebarMenu';
-import Header from './components/layout/header';
+import Header from './components/layout/Header';
 import DashboardPage from './pages/Dashboard';
 import QuestionManagementPage from './pages/pertanyaan';
 import TestResultsPage from './pages/hasiltes';
@@ -54,7 +54,7 @@ const UserModal = ({ isOpen, onClose, onSubmit, userToEdit }) => {
 
 // Daftar Menu Navigasi
 const adminNavItems = [ { id: 'dashboard', label: 'Dashboard' }, { id: 'user-management', label: 'User Management' }, { id: 'question-management', label: 'Question Management' }, { id: 'test-results', label: 'Test Results' }, { id: 'reports', label: 'Reports' }, { id: 'settings', label: 'Settings' }];
-const userNavItems = [ { id: 'question-management', label: 'Take Test' }, { id: 'test-results', label: 'My Results' }];
+const userNavItems = [ { id: 'dashboard', label: 'Dashboard' }, { id: 'question-management', label: 'Take Test' }, { id: 'test-results', label: 'My Results' }];
 
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -77,10 +77,10 @@ function App() {
 
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); localStorage.setItem('theme', theme); }, [theme]);
   useEffect(() => { const savedTitle = localStorage.getItem('webTitle'); if (savedTitle) { setWebTitle(savedTitle); document.title = savedTitle; } else { document.title = webTitle; } }, [webTitle]);
-  useEffect(() => { const token = localStorage.getItem('token'); if (token) { try { const decodedUser = jwtDecode(token); if (decodedUser.exp * 1000 < Date.now()) { localStorage.clear(); } else { const userFromStorage = JSON.parse(localStorage.getItem('user')); if (userFromStorage) { setCurrentUser(userFromStorage); setActiveContent(userFromStorage.role === 'admin' ? 'dashboard' : 'question-management'); } } } catch (error) { console.error("Gagal memproses token:", error); localStorage.clear(); } } setLoading(false); }, []);
+  useEffect(() => { const token = localStorage.getItem('token'); if (token) { try { const decodedUser = jwtDecode(token); if (decodedUser.exp * 1000 < Date.now()) { localStorage.clear(); } else { const userFromStorage = JSON.parse(localStorage.getItem('user')); if (userFromStorage) { setCurrentUser(userFromStorage); setActiveContent('dashboard'); } } } catch (error) { console.error("Gagal memproses token:", error); localStorage.clear(); } } setLoading(false); }, []);
 
   const showToast = (message, type = 'success') => setToast({ show: true, message, type });
-  const handleLogin = (loginData) => { const { token, user } = loginData; localStorage.setItem('token', token); localStorage.setItem('user', JSON.stringify(user)); setCurrentUser(user); setActiveContent(user.role === 'admin' ? 'dashboard' : 'question-management'); showToast('Login berhasil!', 'success'); };
+  const handleLogin = (loginData) => { const { token, user } = loginData; localStorage.setItem('token', token); localStorage.setItem('user', JSON.stringify(user)); setCurrentUser(user); setActiveContent('dashboard'); showToast('Login berhasil!', 'success'); };
   const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); showToast('Anda telah berhasil logout.', 'info'); };
   const handleNavClick = (contentId) => { setActiveContent(contentId); if (window.innerWidth < 1024) setSidebarOpen(false); };
   const handleEditProfile = () => setActiveContent('settings');
@@ -134,7 +134,7 @@ function App() {
         forceUpdate
     };
     switch (activeContent) {
-      case 'dashboard': return <DashboardPage />;
+      case 'dashboard': return <DashboardPage {...props} />;
       case 'question-management': return <QuestionManagementPage {...props} />;
       // --- Kirim fungsi 'handleEditTestResult' sebagai prop ---
       case 'test-results': return <TestResultsPage {...props} onEditTestResult={handleEditTestResult} />;
