@@ -63,7 +63,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [webTitle, setWebTitle] = useState('Psikologi App');
+  const [webTitle, setWebTitle] = useState('Psikologi Web App');
 
   // --- State untuk semua modal ---
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
